@@ -18,7 +18,7 @@ public class Car extends Entity {
 
 	public Car(double x, double y, int width, int height, String color) {
 		
-		super(x, y, width, height, getCarImage(color), 0);
+		super(x, y, width, height, 2, getCarImage(color), 0);
 		
 		this.color = color;
 		this.canMove = true;

@@ -15,13 +15,19 @@ import entity.Drone;
 
 public class SimPanel extends JPanel implements Runnable {
 	
+	double callCounter;
+	
+	
 	// DEVICE SCREEN DIMENSIONS
 	final Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 	final int maxScreenWidth = (int) screenSize.getWidth();
 	final int maxScreenHeight = (int) screenSize.getHeight();
 	
 	// w x h -> 55 x 48
-	final int yardPix = maxScreenHeight / 48;
+	public final int yardPix = maxScreenHeight / 48;
+	
+	// Entity Dimensions
+	public final int ENTITY_DIM = 48;
 	
 	// PANEL SCREEN DIMENSIONS
 	int panelWidth = yardPix * 55;
@@ -38,7 +44,7 @@ public class SimPanel extends JPanel implements Runnable {
 	public ArrayList<Random> rands;
 	
 	// FPS
-	int FPS = 60;
+	int FPS = 120;
 	
 	// Key handler
 	KeyHandler keyH = new KeyHandler();
@@ -47,7 +53,7 @@ public class SimPanel extends JPanel implements Runnable {
 	Thread simThread;
 	
 	// Finish line dimensions x, y, width, height
-	int[] finishLineDim;
+	public int[] finishLineDim;
 	
 	
 	public SimPanel() {
@@ -75,30 +81,33 @@ public class SimPanel extends JPanel implements Runnable {
 	}
 
 	
-	// GAME LOOP
+	// RUN LOOP
 	@Override
 	public void run() {
 		
 		double drawInterval = 1000000000 / FPS;		// 0.01666 seconds
+		double timePassed;
 		double delta = 0;
 		long lastTime = System.nanoTime();
 		long currentTime;
 		long timer = 0;
 		int drawCount = 0;
+		this.callCounter = 0;
 		
 		while (simThread != null) {
 			
 			currentTime = System.nanoTime();
-			
-			delta += (currentTime - lastTime) / drawInterval;
+			timePassed = currentTime - lastTime;
+			delta += timePassed / drawInterval;
 			timer += (currentTime - lastTime);
 			lastTime = currentTime;
+			callCounter++;
+			
+			// 1 UPDATE: update information such as character positions
+			update(timePassed);
 			
 			// If enough time has passed (drawInterval) to be able to update and draw
 			if (delta >= 1) {
-				
-				// 1 UPDATE: update information such as character positions
-				update();
 				
 				// 2 DRAW: draw the screen with the updated information
 				repaint();
@@ -115,6 +124,8 @@ public class SimPanel extends JPanel implements Runnable {
 			// If a second has passed
 			if (timer >= 1000000000) {
 //				System.out.println("FPS: " + drawCount);
+				System.out.println("Call count: " + Double.toString(callCounter));
+				callCounter = 0;
 				
 				// Decreasing the decision timer by one and updating if it reached 0
 				this.decreaseDecisionTimer();
@@ -127,29 +138,56 @@ public class SimPanel extends JPanel implements Runnable {
 		
 	}
 	
-	public void update() {
+	public void update(double timePassed) {
+		
+		this.drone.run();
+		
+		moveCars(timePassed);
+		moveDrone(timePassed);
+		
+	}
+	
+	private void moveDrone(double timePassed) {
+		
+		double travelDist = (this.drone.getSpeed() * yardPix) * (timePassed / 1000000000);
+		double travelX = travelDist * Math.cos(this.drone.getRadDir());
+		double travelY = travelDist * Math.sin(this.drone.getRadDir());
+		this.drone.setX(this.drone.getX() + travelX);
+		this.drone.setY(this.drone.getY() - travelY);
+		
+	}
+	
+	private void moveCars(double timePassed) {
+		
+		double travelDist;
+		double travelX;
+		double travelY;
 		
 		// Going over cars that can move
 		for (int i = 0; i < cars.size(); i++) {
 			if (cars.get(i).canMove()) {
-				
-				// If crossed the finish line
-				if (cars.get(i).getX() > finishLineDim[0] + finishLineDim[2]) {
-					cars.get(i).toggleCanMove();
-				}
-				
-				// Default path to push the cars away from the boundaries
-				if (cars.get(i).getY() <= 18) {
-					cars.get(i).setDirection(315);
-					cars.get(i).setDecisionTimer(2);
-				}
-				else if (cars.get(i).getY() >= panelHeight - (yardPix * 4)) {
-					cars.get(i).setDirection(45);
-					cars.get(i).setDecisionTimer(2);
-				}
-				
-				cars.get(i).run();
+				travelDist = (cars.get(i).getSpeed() * yardPix) * (timePassed / 1000000000);
+				travelX = travelDist * Math.cos(cars.get(i).getRadDir());
+				travelY = travelDist * Math.sin(cars.get(i).getRadDir());
+				cars.get(i).setX(cars.get(i).getX() + travelX);
+				cars.get(i).setY(cars.get(i).getY() - travelY);
 			}
+			
+			// If crossed the finish line
+			if (cars.get(i).getX() > finishLineDim[0] + finishLineDim[2] && cars.get(i).canMove()) {
+				cars.get(i).toggleCanMove();
+			}
+			
+			// Default path to push the cars away from the boundaries
+			if (cars.get(i).getY() <= 18) {
+				cars.get(i).setDirection(315);
+				cars.get(i).setDecisionTimer(2);
+			}
+			else if (cars.get(i).getY() >= panelHeight - (yardPix * 4)) {
+				cars.get(i).setDirection(45);
+				cars.get(i).setDecisionTimer(2);
+			}
+			
 		}
 		
 	}
@@ -169,13 +207,13 @@ public class SimPanel extends JPanel implements Runnable {
 		g2.dispose();
 	}
 	
-	private void setupInitialConditions() {
+	private void setNormalCarPositions() {
 		
 		int heightLane = 8 * yardPix;		// Each lane has a height of 8 yards
 		int placementX = 1 * yardPix;		// Cars start "1 yard" away from the screen
 		int placementY = 0;
-		String[] colors = {"red", "blue", "yellow", "orange", "green", "purple"};
-		int carWidth = (yardPix * 2) / 3;
+		String[] colors = {"red1", "blue1", "yellow1", "orange1", "green1", "purple1"};
+		int carWidth = ENTITY_DIM;
 		int carHeight = carWidth;
 		
 		Random rando = new Random();
@@ -189,21 +227,75 @@ public class SimPanel extends JPanel implements Runnable {
 			placementY += heightLane;
 		}
 		
+	}
+	
+	private void setRandomCarPositions() {
+		
+		String[] colors = {"red1", "blue1", "yellow1", "orange1", "green1", "purple1"};
+		int carWidth = ENTITY_DIM;
+		int carHeight = carWidth;
+		
+		Random randFunc = new Random();
+		
+		int maxX = (int) (panelWidth * 0.5) - (yardPix * 4);
+		int maxY = (int) (panelHeight - yardPix * 4) - (yardPix * 4);
+		
+		int placementX;
+		int placementY;
+		
+		int n = 6;
+		for (int i = 0; i < n; i++) {
+			Random rand = new Random(randFunc.nextLong());
+			rands.add(rand);
+			placementX = randFunc.nextInt(maxX) + (yardPix * 4);
+			placementY = randFunc.nextInt(maxY) + (yardPix * 4);
+			Car car = new Car(placementX, placementY, carWidth, carHeight, colors[i]);
+			cars.add(car);
+		}
+	}
+	
+	private void setupFinishLine() {
+		
 		// Finish line setup
 		this.finishLineDim = new int[4];
-		this.finishLineDim[0] = placementX + (50 * yardPix);
+		this.finishLineDim[0] = 51 * yardPix;
 		this.finishLineDim[1] = 0;
 		this.finishLineDim[2] = yardPix / 4;
 		this.finishLineDim[3] = panelHeight;
 		
-		// Set drone
-		this.setDrone();
+	}
+	
+	private void setupInitialConditions() {
+		
+		// Set up car positions
+//		this.setNormalCarPositions();
+		this.setRandomCarPositions();
+		
+		// Setup finish line
+		this.setupFinishLine();
+		
+		// Set up drone position
+		this.setRandomDronePosition();
 		
 		
 	}
 	
 	private void setDrone() {
-		drone = new Drone(this, yardPix * 8, yardPix * 20, (yardPix * 5) / 3, (yardPix * 5) / 3, 1, 0, "red");
+		drone = new Drone(this, yardPix * 8, yardPix * 20, ENTITY_DIM, ENTITY_DIM, 2, 0, "red1");
+	}
+	
+	private void setRandomDronePosition() {
+		
+		Random rand = new Random();
+		
+		int maxX = (int) (panelWidth * 0.75) - (yardPix * 4);
+		int maxY = (int) (panelHeight - yardPix * 4) - (yardPix * 4);
+		
+		int placementX = rand.nextInt(maxX) + (yardPix * 4);
+		int placementY = rand.nextInt(maxY) + (yardPix * 4);
+		
+		drone = new Drone(this, placementX, placementY, ENTITY_DIM, ENTITY_DIM, 2, 0, "red1");
+		
 	}
 	
 	private void drawFinishLine(Graphics2D g2) {
@@ -262,6 +354,8 @@ public class SimPanel extends JPanel implements Runnable {
 		int randTimer = rand.nextInt(5);
 		car.setDecisionTimer(randTimer);
 	}
+	
+	
 
 
 }

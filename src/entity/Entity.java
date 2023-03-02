@@ -12,19 +12,17 @@ public class Entity {
 	
 	private BufferedImage imageSprite;
 	
-	private int angleDir;		// degree of direction
 	private double radDir;		// direction in radians
 	
 	
-	public Entity(double x, double y, int width, int height, BufferedImage image, int direction) {
+	public Entity(double x, double y, int width, int height, double speed, BufferedImage image, int direction) {
 		this.x = x;
 		this.y = y;
 		this.width = width;
 		this.height = height;
-		this.speed = 18.0 / 60.0;   // 18 / 60 yards per frame
+		this.speed = speed;
 		this.imageSprite = image;
-		this.angleDir = direction;
-		this.radDir = Math.toRadians(angleDir);
+		this.radDir = Math.toRadians(direction);
 		
 	}
 	
@@ -47,11 +45,9 @@ public class Entity {
 	public void setX(double x) { this.x = x; }
 	public void setY(double y) { this.y = y; }
 	public void setImageSprite(BufferedImage image) { this.imageSprite = image; }
-	public void setSpeed(int speed) { this.speed = speed; }
-	public void setDirection(int direction) { 
-		this.angleDir = direction;
-		this.radDir = Math.toRadians(direction);
-	}
+	public void setSpeed(double speed) { this.speed = speed; }
+	public void setDirection(double rad) { this.radDir = rad; }
+	public void setDirection(int direction) { this.radDir = Math.toRadians(direction); }
 	
 	
 }
